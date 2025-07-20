@@ -1,67 +1,67 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import joblib
 
-# Load trained model
-model = joblib.load("loan_acceptance_model.pkl")
+# Load the trained model and feature names
+model_bundle = joblib.load("loan_acceptance_model.pkl")
+model = model_bundle['model']
+feature_names = model_bundle['feature_names']
 
 st.set_page_config(page_title="Loan Acceptance Prediction", layout="centered")
-st.title("💳 Personal Loan Acceptance Prediction")
 
-st.write("Enter customer details below to predict loan acceptance:")
+st.title("📘 Personal Loan Acceptance Prediction")
+st.markdown("Enter customer details below to predict if they are likely to accept a loan offer.")
 
-# Define form inputs
+# Input fields
 age = st.slider("Age", 18, 95, 30)
-job = st.selectbox("Job", ['admin.', 'blue-collar', 'entrepreneur', 'housemaid', 'management',
-                           'retired', 'self-employed', 'services', 'student', 'technician',
-                           'unemployed'])
-marital = st.selectbox("Marital Status", ['divorced', 'married', 'single'])
+job = st.selectbox("Job", [
+    'admin.', 'blue-collar', 'entrepreneur', 'housemaid', 'management',
+    'retired', 'self-employed', 'services', 'student', 'technician',
+    'unemployed', 'unknown'
+])
+marital = st.selectbox("Marital Status", ['married', 'single', 'divorced', 'unknown'])
 education = st.selectbox("Education", ['primary', 'secondary', 'tertiary', 'unknown'])
-default = st.selectbox("Has Credit in Default?", ['no', 'yes'])
-housing = st.selectbox("Has Housing Loan?", ['no', 'yes'])
-loan = st.selectbox("Has Personal Loan?", ['no', 'yes'])
-contact = st.selectbox("Contact Method", ['cellular', 'telephone'])
-month = st.selectbox("Last Contact Month", ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'])
-day_of_week = st.selectbox("Day of Week", ['mon','tue','wed','thu','fri'])
+default = st.selectbox("Has Credit in Default?", ['yes', 'no', 'unknown'])
+housing = st.selectbox("Has Housing Loan?", ['yes', 'no', 'unknown'])
+loan = st.selectbox("Has Personal Loan?", ['yes', 'no', 'unknown'])
+contact = st.selectbox("Contact Method", ['cellular', 'telephone', 'unknown'])
+month = st.selectbox("Last Contact Month", [
+    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+])
+day_of_week = st.selectbox("Day of Week", ['mon', 'tue', 'wed', 'thu', 'fri'])
 campaign = st.slider("Number of Contacts During Campaign", 1, 50, 1)
 previous = st.slider("Number of Previous Contacts", 0, 10, 0)
-poutcome = st.selectbox("Previous Campaign Outcome", ['failure', 'nonexistent', 'success'])
+poutcome = st.selectbox("Previous Campaign Outcome", ['success', 'failure', 'nonexistent'])
 
-# Preprocess input
-def preprocess_input():
-    # Create DataFrame with one row
-    data = {
-        'age': age,
-        'campaign': campaign,
-        'previous': previous,
-        # Encode categorical vars
-        f'job_{job}': 1,
-        f'marital_{marital}': 1,
-        f'education_{education}': 1,
-        f'default_{default}': 1,
-        f'housing_{housing}': 1,
-        f'loan_{loan}': 1,
-        f'contact_{contact}': 1,
-        f'month_{month}': 1,
-        f'day_of_week_{day_of_week}': 1,
-        f'poutcome_{poutcome}': 1
-    }
+# Collect input in a DataFrame
+input_dict = {
+    'age': age,
+    'job': job,
+    'marital': marital,
+    'education': education,
+    'default': default,
+    'housing': housing,
+    'loan': loan,
+    'contact': contact,
+    'month': month,
+    'day_of_week': day_of_week,
+    'campaign': campaign,
+    'previous': previous,
+    'poutcome': poutcome
+}
 
-    # All possible encoded columns (same as training)
-    columns = model.feature_names_in_
-    row = {col: 0 for col in columns}
-    row.update(data)
+input_df = pd.DataFrame([input_dict])
 
-    return pd.DataFrame([row])
+# One-hot encode input to match training
+input_encoded = pd.get_dummies(input_df)
 
-# Predict
-if st.button("Predict"):
-    input_df = preprocess_input()
-    prediction = model.predict(input_df)[0]
+# Align with training features
+input_encoded = input_encoded.reindex(columns=feature_names, fill_value=0)
 
-    if prediction == 1:
-        st.success("✅ The customer is likely to accept the loan offer.")
-    else:
-        st.warning("❌ The customer is unlikely to accept the loan offer.")
+# Make prediction
+if st.button("🔮 Predict Loan Acceptance"):
+    prediction = model.predict(input_encoded)[0]
+    result = "✅ Likely to Accept the Loan Offer" if prediction == 1 else "❌ Not Likely to Accept the Loan Offer"
+    st.subheader("Prediction Result:")
+    st.success(result)
